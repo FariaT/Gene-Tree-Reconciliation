@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gene tree / species tree reconciliation</title>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#1c2530;--mut:#5b6775;--line:#c9d1d9;--dup:#b4237a;--spec:#0f766e;--acc:#2455a4;--err:#b42318;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171d;--card:#1b222b;--ink:#e6ebf0;--mut:#9aa7b4;--line:#33404d;--dup:#f06cb8;--spec:#4fd1c0;--acc:#7aa7f0;--err:#ff8a7a}}
+:root[data-theme="dark"]{--bg:#12171d;--card:#1b222b;--ink:#e6ebf0;--mut:#9aa7b4;--line:#33404d;--dup:#f06cb8;--spec:#4fd1c0;--acc:#7aa7f0;--err:#ff8a7a}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font:600 1.6rem/1.2 Georgia,"Times New Roman",serif;margin:0 0 6px}
+p.lead{color:var(--mut);margin:0 0 18px;max-width:70ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+label{display:block;font-weight:600;margin-bottom:4px}
+input[type=text]{width:100%;font:15px ui-monospace,Menlo,Consolas,monospace;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:700px){.row{grid-template-columns:1fr}}
+.hint{color:var(--mut);font-size:.88rem;margin:4px 0 0}
+button{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.go{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.err{color:var(--err);font-weight:600;margin-top:10px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font:600 2rem/1.1 Georgia,serif}
+.stat span{color:var(--mut);font-size:.88rem}
+.trees{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:700px){.trees{grid-template-columns:1fr}}
+.trees h2,.card h2{font:600 1.05rem/1.3 system-ui,sans-serif;margin:0 0 6px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font:12px system-ui,sans-serif}svg .m{fill:var(--mut);font-size:11px}
+svg line,svg path{stroke:var(--ink);stroke-width:1.4;fill:none}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.d{color:var(--dup);font-weight:600}.s{color:var(--spec);font-weight:600}
+.key{font-size:.88rem;color:var(--mut)}
+</style></head><body><main>
+<h1>Gene tree / species tree reconciliation</h1>
+<p class="lead">Enter a rooted species tree and a rooted gene tree in Newick format. The tool maps each gene-tree node to the species tree (LCA mapping) and counts duplications, losses, and extra lineages.</p>
+
+<section class="card">
+<div class="row">
+<div><label for="st">Species tree</label><input id="st" type="text" value="(A,(B,C))" spellcheck="false">
+<p class="hint">Up to 8 species. Example: ((A,B),(C,D))</p></div>
+<div><label for="gt">Gene tree</label><input id="gt" type="text" value="((A_1,B),(A_2,C))" spellcheck="false">
+<p class="hint">Gene copies are labeled by species. Use the species name, or add a suffix: A_1, A_2.</p></div>
+</div>
+<div class="btns"><button class="go" id="run">Reconcile</button>
+<span class="key">Examples:</span>
+<button data-st="(A,(B,C))" data-gt="((A_1,B),(A_2,C))">Duplication + losses</button>
+<button data-st="((A,B),C)" data-gt="((A,C),B)">Discordant (ILS)</button>
+<button data-st="((A,B),(C,D))" data-gt="(((A,B),C),D)">Congruent-ish</button>
+<button data-st="(((A,B),C),(D,E))" data-gt="((A,(B,D)),(C,E))">Larger</button></div>
+<div class="err" id="err" role="alert"></div>
+</section>
+
+<div id="out" hidden>
+<section class="card"><div class="stats">
+<div class="stat"><b id="nd">0</b><span>Duplications</span></div>
+<div class="stat"><b id="nl">0</b><span>Losses</span></div>
+<div class="stat"><b id="nx">0</b><span>Extra lineages (deep coalescence)</span></div>
+</div>
+<p class="hint">Duplication and loss counts assume the gene tree evolved by gene duplication and loss. Extra lineages are the alternative explanation, incomplete lineage sorting (the MDC cost).</p></section>
+
+<section class="card trees">
+<div><h2>Gene tree</h2><div id="gsvg"></div>
+<p class="key"><span class="d">■ duplication</span> &nbsp; <span class="s">● speciation</span> &nbsp; M = node it maps to in the species tree</p></div>
+<div><h2>Species tree</h2><div id="ssvg"></div>
+<p class="key">Number on a branch = gene lineages passing through it (shown when more than 1).</p></div>
+</section>
+
+<section class="card"><h2>Gene tree nodes</h2><div class="tw"><table><thead><tr><th>Gene-tree node (leaves)</th><th>Maps to (M)</th><th>Event</th><th>Losses on its child edges</th></tr></thead><tbody id="tb"></tbody></table></div>
+<p class="hint" id="rootloss"></p></section>
+
+<section class="card"><h2>How the counts work</h2>
+<p><b>Mapping.</b> A gene leaf maps to its species. An internal node maps to the lowest species-tree node that is an ancestor of both children’s images.</p>
+<p><b>Duplication.</b> A node is a duplication if it maps to the same species node as at least one of its children. Otherwise it is a speciation.</p>
+<p><b>Losses.</b> For each gene-tree edge from parent v to child w, count the species-tree edges between M(w) and M(v). Subtract 1 if v is a speciation, since that gap is a normal split. Add the edges above the gene root up to the species root.</p>
+<p><b>Extra lineages.</b> For each species-tree branch, count the gene lineages that cross it, then sum (count − 1) over the branches that have at least one lineage.</p></section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function parse(s){s=s.replace(/\s+/g,'').replace(/;$/,'');let i=0;
+function node(){const n={kids:[],name:''};
+if(s[i]==='('){i++;for(;;){n.kids.push(node());if(s[i]===','){i++;continue}
+if(s[i]===')'){i++;break}throw new Error('Unbalanced parentheses or missing comma in "'+s+'"')}}
+let st=i;while(i<s.length&&!',()'.includes(s[i]))i++;n.name=s.slice(st,i).split(':')[0];return n}
+const r=node();if(i!==s.length)throw new Error('Unexpected text near "'+s.slice(i)+'"');return r}
+function leaves(n){return n.kids.length?n.kids.flatMap(leaves):[n]}
+function setup(r){(function f(n,p,d){n.p=p;n.d=d;n.kids.forEach(k=>f(k,n,d+1))})(r,null,0);
+(function h(n){n.h=n.kids.length?1+Math.max(...n.kids.map(h)):0;return n.h})(r)}
+function lca(a,b){while(a!==b){if(a.d>=b.d)a=a.p;else b=b.p}return a}
+function lab(n,short){const L=leaves(n).map(x=>x.name);if(L.length===1)return L[0];const j=L.every(x=>x.length===1)?'':',';return '{'+L.join(j)+'}'}
+function layout(r,W,H0){const lv=leaves(r),gap=26;let y=0;
+(function f(n){if(!n.kids.length){n.y=14+(y++)*gap}else{n.kids.forEach(f);n.y=(n.kids[0].y+n.kids[n.kids.length-1].y)/2}})(r);
+const hh=r.h||1;(function g(n){n.x=10+(hh-n.h)/hh*W;n.kids.forEach(g)})(r);return 28+lv.length*gap-gap+gap/2}
+function draw(r,note){const W=190,H=layout(r,W),all=[];let o='';
+(function f(n){all.push(n);n.kids.forEach(f)})(r);
+all.forEach(n=>{if(n.kids.length){const ys=n.kids.map(k=>k.y);o+=`<line x1="${n.x}" y1="${Math.min(...ys)}" x2="${n.x}" y2="${Math.max(...ys)}"/>`;
+n.kids.forEach(k=>o+=`<line x1="${n.x}" y1="${k.y}" x2="${k.x}" y2="${k.y}"/>`)}
+if(!n.kids.length)o+=`<text x="${n.x+6}" y="${n.y+4}">${esc(n.name)}</text>`;o+=note(n)});
+if(!r.p)o+=`<line x1="2" y1="${r.y}" x2="${r.x}" y2="${r.y}"/>`;
+return `<svg viewBox="0 0 ${W+90} ${H}" role="img">${o}</svg>`}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function run(){const err=$('err');err.textContent='';$('out').hidden=true;
+try{const S=parse($('st').value),G=parse($('gt').value);setup(S);setup(G);
+const sl=leaves(S),sp={};sl.forEach(l=>{if(!l.name)throw new Error('Every species-tree leaf needs a name.');if(sp[l.name])throw new Error('Duplicate species name: '+l.name);sp[l.name]=l});
+if(sl.length>8)throw new Error('This tool supports up to 8 species (you have '+sl.length+').');
+if(sl.length<2)throw new Error('The species tree needs at least 2 species.');
+if(S.kids.some(k=>0))throw 0;
+leaves(G).forEach(l=>{let nm=l.name;if(!sp[nm]){const m=nm.match(/^(.+?)[_.\-]?\d+$/);if(m&&sp[m[1]])nm=m[1];else throw new Error('Gene leaf "'+l.name+'" does not match any species ('+Object.keys(sp).join(', ')+').')}l.M=sp[nm]});
+let dups=0,loss=0;const rows=[];
+(function f(n){if(!n.kids.length)return;n.kids.forEach(f);
+let m=n.kids[0].M;n.kids.forEach(k=>m=lca(m,k.M));n.M=m;
+n.dup=n.kids.some(k=>k.M===m);if(n.dup)dups++;
+let nl=0;n.kids.forEach(k=>{const e=k.M.d>=m.d?k.M.d-m.d:0;nl+=n.dup?e:Math.max(e-1,0)});
+n.loss=nl;loss+=nl;rows.push(n)})(G);
+const rl=G.M.d;loss+=rl;
+// extra lineages
+const cnt=new Map();let xl=0;
+(function f(v){v.kids.forEach(f);const top=v.p?v.p.M:null;
+let s=v.M;while(s&&s!==S&&(top===null||(s!==top&&isAnc(top,s)))){cnt.set(s,(cnt.get(s)||0)+1);s=s.p}})(G);
+cnt.forEach(c=>{xl+=c-1});
+$('nd').textContent=dups;$('nl').textContent=loss;$('nx').textContent=xl;
+$('gsvg').innerHTML=draw(G,n=>{if(!n.kids.length)return '';const c=n.dup?'var(--dup)':'var(--spec)';
+const mk=n.dup?`<rect x="${n.x-4}" y="${n.y-4}" width="8" height="8" fill="${c}"/>`:`<circle cx="${n.x}" cy="${n.y}" r="4.5" fill="${c}"/>`;
+return mk+`<text class="m" x="${n.x-2}" y="${n.y-8}">M=${esc(lab(n.M))}</text>`});
+$('ssvg').innerHTML=draw(S,n=>{const c=cnt.get(n);return c>1&&n.p?`<text class="m" x="${n.x+4}" y="${n.y-4}" style="fill:var(--acc);font-weight:600">${c}</text>`:''});
+$('tb').innerHTML=rows.reverse().map(n=>`<tr><td>${esc(lab(n).replace(/\{|\}/g,'')||'')} ${''}</td><td>${esc(lab(n.M))}</td><td class="${n.dup?'d':'s'}">${n.dup?'Duplication':'Speciation'}</td><td>${n.loss}</td></tr>`).join('');
+$('rootloss').textContent='Edges from the gene-tree root up to the species-tree root add '+rl+' loss'+(rl===1?'':'es')+' (included in the total).';
+$('out').hidden=false}catch(e){err.textContent=e&&e.message?e.message:'Could not read the trees. Check the Newick format.'}}
+function isAnc(a,s){while(s){if(s===a)return true;s=s.p}return false}
+$('run').onclick=run;
+document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{$('st').value=b.dataset.st;$('gt').value=b.dataset.gt;run()});
+['st','gt'].forEach(i=>$(i).addEventListener('keydown',e=>{if(e.key==='Enter')run()}));
+run();
+</script></body></html>
