@@ -3,41 +3,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gene tree / species tree reconciliation</title>
 <style>
-:root{--bg:#f3f5f7;--card:#fff;--ink:#1c2530;--mut:#5b6775;--line:#c9d1d9;--dup:#b4237a;--spec:#0f766e;--acc:#2455a4;--err:#b42318;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171d;--card:#1b222b;--ink:#e6ebf0;--mut:#9aa7b4;--line:#33404d;--dup:#f06cb8;--spec:#4fd1c0;--acc:#7aa7f0;--err:#ff8a7a}}
-:root[data-theme="dark"]{--bg:#12171d;--card:#1b222b;--ink:#e6ebf0;--mut:#9aa7b4;--line:#33404d;--dup:#f06cb8;--spec:#4fd1c0;--acc:#7aa7f0;--err:#ff8a7a}
-*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
-h1{font:600 1.6rem/1.2 Georgia,"Times New Roman",serif;margin:0 0 6px}
-p.lead{color:var(--mut);margin:0 0 18px;max-width:70ch}
-.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
-label{display:block;font-weight:600;margin-bottom:4px}
-input[type=text]{width:100%;font:15px ui-monospace,Menlo,Consolas,monospace;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
-input:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:700px){.row{grid-template-columns:1fr}}
-.hint{color:var(--mut);font-size:.88rem;margin:4px 0 0}
-button{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
-button.go{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
-.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
-.err{color:var(--err);font-weight:600;margin-top:10px}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-.stat b{display:block;font:600 2rem/1.1 Georgia,serif}
-.stat span{color:var(--mut);font-size:.88rem}
-.trees{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:700px){.trees{grid-template-columns:1fr}}
-.trees h2,.card h2{font:600 1.05rem/1.3 system-ui,sans-serif;margin:0 0 6px}
-svg{width:100%;height:auto;display:block}
-svg text{fill:var(--ink);font:12px system-ui,sans-serif}svg .m{fill:var(--mut);font-size:11px}
-svg line,svg path{stroke:var(--ink);stroke-width:1.4;fill:none}
-.tw{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:.92rem}
-th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-.d{color:var(--dup);font-weight:600}.s{color:var(--spec);font-weight:600}
+:root{
+  --bg:#f3f6fb;
+  --card:#ffffff;
+  --ink:#1e293b;
+  --mut:#64748b;
+  --line:#dce4ef;
+  --dup:#b4237a;
+  --spec:#0f766e;
+  --acc:#315fbd;
+  --err:#b42318;
+  --soft:#f8faff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:linear-gradient(180deg,#eaf1fb 0,#f5f7fb 300px,var(--bg) 100%);
+  color:var(--ink);
+  font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+main{max-width:1040px;margin:0 auto;padding:34px 20px 56px}
+main::before{
+  content:"";display:block;width:58px;height:5px;border-radius:8px;
+  background:linear-gradient(90deg,var(--acc),var(--spec));margin-bottom:18px;
+}
+h1{
+  font:700 clamp(1.55rem,3vw,2rem)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;
+  margin:0 0 9px;letter-spacing:-.035em;color:#17243a;
+}
+p.lead{color:var(--mut);margin:0 0 24px;max-width:76ch;font-size:.98rem}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:15px;
+  padding:20px;margin-bottom:18px;
+  box-shadow:0 5px 18px rgba(35,55,85,.055);
+}
+label{display:block;font-weight:700;margin-bottom:7px;color:#26364d}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.row>div{min-width:0}
+input[type=text]{
+  display:block;width:100%;min-width:0;font:15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  padding:12px 13px;border:1px solid #cbd7e6;border-radius:9px;
+  background:#fbfcff;color:var(--ink);transition:border-color .15s,box-shadow .15s,background .15s;
+}
+input[type=text]:hover{border-color:#aebfd5;background:#fff}
+input:focus,button:focus-visible{outline:3px solid rgba(49,95,189,.18);outline-offset:2px;border-color:var(--acc)}
+.hint{color:var(--mut);font-size:.88rem;margin:7px 0 0}
+button{
+  font:600 .92rem/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;
+  padding:10px 15px;border-radius:9px;border:1px solid #d4deeb;
+  background:#f9fbfe;color:#34445c;cursor:pointer;
+  transition:background .15s,border-color .15s,transform .15s,box-shadow .15s;
+}
+button:hover{background:#eef3fb;border-color:#b7c7dc;box-shadow:0 2px 6px rgba(35,55,85,.06)}
+button:active{transform:translateY(1px)}
+button.go{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700;padding-inline:19px;box-shadow:0 3px 8px rgba(49,95,189,.2)}
+button.go:hover{background:#264f9f;border-color:#264f9f}
+.btns{display:flex;flex-wrap:wrap;gap:9px;margin-top:17px;align-items:center}
+.btns .key{margin:0 2px 0 4px}
+.err{color:var(--err);font-weight:650;margin-top:11px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.stat{
+  min-width:0;border:1px solid var(--line);border-top:4px solid var(--acc);
+  border-radius:11px;padding:14px 15px;background:var(--soft);
+}
+.stat:nth-child(1){border-top-color:var(--dup)}
+.stat:nth-child(2){border-top-color:#c17a24}
+.stat:nth-child(3){border-top-color:var(--spec)}
+.stat b{display:block;font:700 2.05rem/1.1 system-ui,sans-serif;margin-bottom:5px;color:#17243a}
+.stat span{color:var(--mut);font-size:.88rem;line-height:1.35;display:block}
+.trees{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.trees>div{
+  min-width:0;padding:15px;border:1px solid #e3eaf3;border-radius:11px;
+  background:linear-gradient(180deg,#fbfcff,#f7f9fd);
+}
+.trees h2,.card h2{font:700 1.06rem/1.35 system-ui,sans-serif;margin:0 0 10px;color:#26364d}
+svg{width:100%;height:auto;display:block;overflow:visible}
+svg text{fill:var(--ink);font:12px system-ui,sans-serif}
+svg .m{fill:var(--mut);font-size:11px}
+svg line,svg path{stroke:#53647a;stroke-width:1.5;fill:none;stroke-linecap:round}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:9px}
+table{border-collapse:collapse;width:100%;font-size:.92rem;min-width:560px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line)}
+th{color:#52627a;font-weight:700;background:#f3f6fb;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#f8faff}
+.d{color:var(--dup);font-weight:700}.s{color:var(--spec);font-weight:700}
 .key{font-size:.88rem;color:var(--mut)}
+@media(max-width:700px){
+  main{padding:25px 14px 40px}
+  .row,.trees{grid-template-columns:1fr}
+  .card{padding:16px;border-radius:12px}
+  .trees>div{padding:12px}
+}
+@media(max-width:520px){
+  .stats{grid-template-columns:1fr}
+  .stat{padding:12px 14px}
+  .btns .key{width:100%;margin:2px 0 0}
+  .btns button{flex:1 1 auto}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  button,input[type=text]{transition:none}
+}
 </style></head><body><main>
 <h1>Gene tree / species tree reconciliation</h1>
 <p class="lead">Enter a rooted species tree and a rooted gene tree in Newick format. The tool maps each gene-tree node to the species tree (LCA mapping) and counts duplications, losses, and extra lineages.</p>
@@ -46,14 +114,13 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
 <div class="row">
 <div><label for="st">Species tree</label><input id="st" type="text" value="(A,(B,C))" spellcheck="false">
 <p class="hint">Up to 8 species. Example: ((A,B),(C,D))</p></div>
-<div><label for="gt">Gene tree</label><input id="gt" type="text" value="((A_1,B),(A_2,C))" spellcheck="false">
-<p class="hint">Gene copies are labeled by species. Use the species name, or add a suffix: A_1, A_2.</p></div>
+<div><label for="gt">Gene tree</label><input id="gt" type="text" value="((A,B),(A,C))" spellcheck="false">
+<p class="hint">Label each gene-tree leaf with its species letter. Repeat a letter when that species has multiple gene copies.</p></div>
 </div>
 <div class="btns"><button class="go" id="run">Reconcile</button>
 <span class="key">Examples:</span>
-<button data-st="(A,(B,C))" data-gt="((A_1,B),(A_2,C))">Duplication + losses</button>
+<button data-st="(A,(B,C))" data-gt="((A,B),(A,C))">Duplication + losses</button>
 <button data-st="((A,B),C)" data-gt="((A,C),B)">Discordant (ILS)</button>
-<button data-st="((A,B),(C,D))" data-gt="(((A,B),C),D)">Congruent-ish</button>
 <button data-st="(((A,B),C),(D,E))" data-gt="((A,(B,D)),(C,E))">Larger</button></div>
 <div class="err" id="err" role="alert"></div>
 </section>
@@ -76,11 +143,7 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
 <section class="card"><h2>Gene tree nodes</h2><div class="tw"><table><thead><tr><th>Gene-tree node (leaves)</th><th>Maps to (M)</th><th>Event</th><th>Losses on its child edges</th></tr></thead><tbody id="tb"></tbody></table></div>
 <p class="hint" id="rootloss"></p></section>
 
-<section class="card"><h2>How the counts work</h2>
-<p><b>Mapping.</b> A gene leaf maps to its species. An internal node maps to the lowest species-tree node that is an ancestor of both children’s images.</p>
-<p><b>Duplication.</b> A node is a duplication if it maps to the same species node as at least one of its children. Otherwise it is a speciation.</p>
-<p><b>Losses.</b> For each gene-tree edge from parent v to child w, count the species-tree edges between M(w) and M(v). Subtract 1 if v is a speciation, since that gap is a normal split. Add the edges above the gene root up to the species root.</p>
-<p><b>Extra lineages.</b> For each species-tree branch, count the gene lineages that cross it, then sum (count − 1) over the branches that have at least one lineage.</p></section>
+
 </div>
 </main>
 <script>
